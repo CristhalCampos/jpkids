@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
-import Link from "next/link";
-import { ArrowRight, ShieldCheck, Users, Calendar, Sparkles } from "lucide-react";
+import { ShieldCheck, Users, Calendar } from "lucide-react";
+import Button from "@/components/ui/Button";
+import Footer from "@/components/ui/Footer";
+import Logo from "@/components/ui/Logo";
 
 export default async function Home() {
   const supabase = await createClient();
@@ -10,27 +12,20 @@ export default async function Home() {
     <main className="min-h-screen bg-slate-50 flex flex-col items-center justify-between font-sans">
       <nav className="w-full flex justify-center border-b border-slate-200 bg-white/80 backdrop-blur-md sticky top-0 z-50 h-16">
         <div className="w-full max-w-6xl flex justify-between items-center px-6 text-sm">
-          <div className="flex items-center gap-3 font-extrabold text-slate-800 text-lg">
-            <span className="w-9 h-9 rounded-xl bg-purple-600 flex items-center justify-center text-white shadow-md shadow-purple-500/20">
-              <Sparkles className="w-5 h-5" />
-            </span>
-            JP KIDS
-          </div>
+          <Logo horizontal={true} size={35} />
           <div>
             {user ? (
-              <Link
+              <Button
                 href="/dashboard"
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#352EF2] text-white font-bold text-sm shadow-md shadow-blue-500/30 hover:opacity-90 transition-all"
-              >
-                Ir al Dashboard <ArrowRight className="w-4 h-4" />
-              </Link>
+                title="Ir al Dashboard"
+                variant="primary"
+              />
             ) : (
-              <Link
+              <Button
                 href="/login"
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#352EF2] text-white font-bold text-sm shadow-md shadow-blue-500/30 hover:opacity-90 transition-all"
-              >
-                Iniciar Sesión <ArrowRight className="w-4 h-4" />
-              </Link>
+                title="Iniciar Sesión"
+                variant="primary"
+              />
             )}
           </div>
         </div>
@@ -67,7 +62,7 @@ export default async function Home() {
           </div>
 
           <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600">
+            <div className="w-12 h-12 rounded-2xl bg-purple-50 flex items-center justify-center text-purple-600">
               <ShieldCheck className="w-6 h-6" />
             </div>
             <h3 className="font-bold text-slate-800 text-base">Acceso Seguro</h3>
@@ -76,9 +71,7 @@ export default async function Home() {
         </div>
       </div>
 
-      <footer className="w-full py-8 border-t border-slate-200 bg-white text-center text-xs text-slate-500">
-        <p>JP KIDS • Todos los derechos reservados</p>
-      </footer>
+      <Footer />
     </main>
   );
 }
