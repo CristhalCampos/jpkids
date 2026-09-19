@@ -3,11 +3,12 @@ import { ShieldCheck, Users, Calendar } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Footer from "@/components/ui/Footer";
 import Logo from "@/components/ui/Logo";
+import { Suspense } from "react";
 
-export default async function Home() {
+async function HomePageContent() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-
+  
   return (
     <main className="min-h-screen bg-slate-50 flex flex-col items-center justify-between font-sans">
       <nav className="w-full flex justify-center border-b border-slate-200 bg-white/80 backdrop-blur-md sticky top-0 z-50 h-16">
@@ -73,5 +74,13 @@ export default async function Home() {
 
       <Footer />
     </main>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center">Loading...</div>}>
+      <HomePageContent />
+    </Suspense>
   );
 }

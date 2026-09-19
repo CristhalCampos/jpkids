@@ -1,10 +1,8 @@
 import { Calendar, AlertCircle } from 'lucide-react';
 import NoticeCard from '@/components/ui/NoticeCard';
 
-type NoticeType = 'Evento' | 'Reunión' | 'Ayuno';
-
 interface NoticeItem {
-  type: NoticeType; // En lugar de solo string
+  type: string;
   title: string;
   date: string;
   start_time: string;
@@ -26,7 +24,7 @@ export default function UpcomingEventsSection({ upcomingNotices }: UpcomingEvent
           upcomingNotices.map((anuncio, index) => (
             <NoticeCard
               key={index}
-              type={anuncio.type}
+              type={anuncio.type as 'Evento' | 'Reunión' | 'Ayuno'}
               title={anuncio.title}
               date={anuncio.date}
               start_time={anuncio.start_time}

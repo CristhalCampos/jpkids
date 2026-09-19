@@ -16,6 +16,7 @@ export default function Logo({ horizontal = false, size = 45, noMargin = false }
         height={size}
         priority
         className="object-contain"
+        style={{ width: size, height: size }}
       />
       <h1 className={`font-extrabold tracking-wide bg-gradient-to-r from-purple-600 via-pink-500 to-amber-500 bg-clip-text text-transparent ${horizontal ? 'text-lg md:text-xl' : 'text-4xl mt-2'}`}>
         JP KIDS
