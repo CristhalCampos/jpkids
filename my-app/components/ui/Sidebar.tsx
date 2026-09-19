@@ -1,6 +1,7 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
+import { Suspense } from 'react';
 import {
   LayoutDashboard,
   Calendar,
@@ -21,15 +22,15 @@ interface SidebarProps {
 
 const navItems = [
   { name: 'Dashboard', href: '/dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
-  { name: 'Cronograma', href: '/schedule', icon: <Calendar className="w-5 h-5" /> },
-  { name: 'Grupos', href: '/groups', icon: <Users className="w-5 h-5" /> },
+  { name: 'Cronograma de clases', href: '/schedule', icon: <Calendar className="w-5 h-5" /> },
+  { name: 'Grupos de maestros', href: '/groups', icon: <Users className="w-5 h-5" /> },
   { name: 'Eventos', href: '/events', icon: <CalendarDays className="w-5 h-5" /> },
   { name: 'Cumpleaños', href: '/birthdays', icon: <Cake className="w-5 h-5" /> },
-  { name: 'Asistencia', href: '/presence', icon: <CheckSquare className="w-5 h-5" /> },
-  { name: 'Reuniones', href: '/meetings', icon: <FolderKanban className="w-5 h-5" /> },
+  { name: 'Asistencia de niños', href: '/presence', icon: <CheckSquare className="w-5 h-5" /> },
+  { name: 'Reuniones de maestros', href: '/meetings', icon: <FolderKanban className="w-5 h-5" /> },
 ];
 
-export default function Sidebar({ isCollapsed, isOpenMobile, onCloseMobile }: SidebarProps) {
+function SidebarContent({ isCollapsed, isOpenMobile, onCloseMobile }: SidebarProps) {
   const pathname = usePathname();
 
   return (
@@ -78,5 +79,17 @@ export default function Sidebar({ isCollapsed, isOpenMobile, onCloseMobile }: Si
         </nav>
       </aside>
     </>
+  );
+}
+
+export default function Sidebar(props: SidebarProps) {
+  return (
+    <Suspense fallback={
+      <div className="w-64 h-screen bg-white border-r border-slate-200 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+      </div>
+    }>
+      <SidebarContent {...props} />
+    </Suspense>
   );
 }

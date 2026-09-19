@@ -1,4 +1,3 @@
-// components/ui/Button.tsx
 import Link from 'next/link';
 import { ReactNode, ButtonHTMLAttributes, AnchorHTMLAttributes } from 'react';
 
@@ -36,7 +35,9 @@ export default function Button({
   };
 
   const isOnlyIcon = icon && !title;
-  const combinedClasses = `inline-flex items-center justify-center font-medium transition-all rounded-xl active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${
+  const hasJustify = className.includes('justify-');
+  const defaultJustify = hasJustify ? '' : 'justify-center';
+  const combinedClasses = `inline-flex items-center ${defaultJustify} font-medium transition-all rounded-xl active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${
     isOnlyIcon ? 'p-2.5 aspect-square' : 'px-4 py-2.5 gap-2.5'
   } ${variants[variant]} ${className}`;
 

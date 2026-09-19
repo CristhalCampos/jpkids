@@ -1,12 +1,24 @@
+"use client";
+
 import { ShieldAlert, LogIn, ArrowLeft } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Logo from '@/components/ui/Logo';
 import Footer from '@/components/ui/Footer';
+import { useRouter } from 'next/navigation';
 
 export default function UnauthorizedPage() {
+  const router = useRouter();
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-between font-sans p-4">
-      <header className="p-6 flex justify-center">
+    <div
+      className="min-h-screen bg-slate-50 flex flex-col items-center justify-between font-sans p-4"
+      style={{
+        paddingTop: 'calc(env(safe-area-inset-top) + 2rem)',
+        paddingBottom: 'calc(env(safe-area-inset-bottom) + 2rem)',
+        paddingLeft: 'env(safe-area-inset-left)',
+        paddingRight: 'env(safe-area-inset-right)'
+      }}
+    >
+      <header className="pt-6 flex justify-center">
         <Logo horizontal={false} size={45} />
       </header>
 
@@ -35,8 +47,8 @@ export default function UnauthorizedPage() {
                 className="w-full sm:w-auto"
               />
               <Button
-                href="/"
-                title="Volver al inicio"
+                onClick={() => router.back()}
+                title="Regresar"
                 icon={<ArrowLeft className="w-4 h-4" />}
                 variant="secondary"
                 className="w-full sm:w-auto"

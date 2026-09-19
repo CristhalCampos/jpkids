@@ -143,14 +143,22 @@ export default function DashboardPage() {
           presenceMap[p.kid_id] += 1;
         });
 
-        const kidsPresenceRanked = (allKids || []).map((kid: any) => {
+        const kidsWithAttendance = (allKids || []).map((kid: any) => {
           const presentCount = presenceMap[kid.id] || 0;
           const percentage = classesCount && classesCount > 0 ? Math.round((presentCount / classesCount) * 100) : 0;
+          
           return {
             name: `${kid.first_name} ${kid.last_name || ''}`.trim(),
-            percentage
+            percentage,
+            presentCount
           };
-        }).sort((a, b) => b.percentage - a.percentage).slice(0, 2);
+        });
+
+        const kidsPresenceRanked = kidsWithAttendance
+          .filter((kid) => kid.presentCount > 0)
+          .sort((a, b) => b.percentage - a.percentage)
+          .slice(0, 2)
+          .map(({ name, percentage }) => ({ name, percentage }));
 
         setBestPresence(kidsPresenceRanked);
 
