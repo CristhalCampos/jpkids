@@ -248,7 +248,6 @@ function ScheduleDetailContent() {
           <span className="text-xs font-extrabold uppercase tracking-wider bg-slate-100 text-slate-700 px-3 py-1 rounded-full">
             {dayData.day} {dayNum} de {monthName} {groupNumber ? `• Grupo ${groupNumber}` : ''}
           </span>
-          <span className="text-xs font-semibold text-purple-600">Lección Ministerial</span>
         </div>
 
         <h2 className="text-2xl font-black text-slate-900">
