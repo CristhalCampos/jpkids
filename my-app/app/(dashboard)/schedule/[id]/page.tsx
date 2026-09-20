@@ -139,61 +139,33 @@ function ScheduleDetailContent() {
 
   // SENIOR: Consulta la API oficial de YouVersion con logs de depuración
   const fetchBibleVerse = async (reference: string, versionId: string) => {
-    console.log('🚀 Iniciando fetchBibleVerse. Referencia:', reference, 'Versión ID:', versionId);
+    console.log(' Iniciando fetchBibleVerse. Referencia:', reference, 'Versión ID:', versionId);
     setLoadingVerse(true);
     try {
-      const parsed = parseBibleReference(reference);
+      // SENIOR: Llamamos a nuestra API Route en lugar de YouVersion directamente
+      const url = `/api/bible-verse?versionId=${versionId}&reference=${encodeURIComponent(reference)}`;
+      console.log('🌐 Consultando nuestra API:', url);
       
-      if (!parsed) {
-        console.error('❌ Error: parseBibleReference devolvió null para:', reference);
-        setBibleVerseData({ text: reference, version: "Referencia no reconocida" });
-        setLoadingVerse(false);
-        return;
-      }
-
-      const apiKey = process.env.NEXT_PUBLIC_YOUVERSION_API_KEY;
-      if (!apiKey) {
-        console.error('❌ FALTA LA VARIABLE DE ENTORNO: NEXT_PUBLIC_YOUVERSION_API_KEY');
-        setBibleVerseData({ text: reference, version: "Falta API Key" });
-        setLoadingVerse(false);
-        return;
-      }
-
-      // SENIOR: El dominio oficial es api.youversionapi.com
-      // Formato: /bibles/{bible_id}/passages/{book_id}.{chapter}.{verse}
-      const url = `https://api.youversion.com/v1/bibles/${versionId}/passages/${parsed.bookId}.${parsed.chapter}.${parsed.verse}`;
-      console.log('🌐 URL a consultar:', url);
-      
-      // SENIOR: La API Key va en los HEADERS, no en la URL
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Api-Key': apiKey,
-          'Accept': 'application/json'
-        }
-      });
-      
-      console.log('📡 Respuesta de la API - Status:', response.status, response.statusText);
+      const response = await fetch(url);
+      console.log('📡 Respuesta de nuestra API - Status:', response.status);
       
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Error en la respuesta de la API:', errorText);
-        throw new Error(`Versículo no encontrado (Status: ${response.status})`);
+        const errorData = await response.json().catch(() => ({}));
+        console.error('❌ Error de nuestra API:', errorData);
+        throw new Error(`Error: ${errorData.error || response.status}`);
       }
       
       const data = await response.json();
-      console.log('✅ Datos recibidos de la API:', data);
+      console.log('✅ Datos recibidos:', data);
       
-      // YouVersion devuelve el texto en 'data.content' o dentro de 'data.verses'
-      const verseText = data.content || (data.verses && data.verses.length > 0 ? data.verses[0].content : reference);
       const versionName = BIBLE_VERSIONS.find(v => v.id === versionId)?.name || versionId;
       
       setBibleVerseData({
-        text: verseText,
+        text: data.text || reference,
         version: versionName
       });
     } catch (error) {
-      console.error("💥 Error cargando versículo de YouVersion:", error);
+      console.error("💥 Error cargando versículo:", error);
       setBibleVerseData({ text: reference, version: "No disponible" });
     } finally {
       setLoadingVerse(false);
