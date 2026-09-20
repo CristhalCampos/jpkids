@@ -11,7 +11,7 @@ async function HomePageContent() {
   
   return (
     <main className="min-h-screen bg-slate-50 flex flex-col items-center justify-between font-sans">
-      <nav className="w-full flex justify-center border-b border-slate-200 bg-white/80 backdrop-blur-md sticky top-0 z-50 h-16">
+      <nav className="w-full flex justify-center items-center border-b border-slate-200 bg-white/80 backdrop-blur-md sticky top-0 z-50 h-16">
         <div className="w-full max-w-6xl flex justify-between items-center px-6 text-sm">
           <Logo horizontal={true} size={35} />
           <div>
