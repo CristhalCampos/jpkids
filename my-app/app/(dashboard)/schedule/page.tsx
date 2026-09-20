@@ -219,7 +219,7 @@ export default function SchedulePage() {
                                 </h4>
                                 {classDay.isToday && (
                                   <span className="text-[10px] font-bold bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">
-                                    Hoy
+                                    Próxima
                                   </span>
                                 )}
                               </div>
