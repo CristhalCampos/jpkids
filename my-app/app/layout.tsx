@@ -10,8 +10,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "JP KIDS | Ministerio de Niños",
-  description: "Plataforma segura para la gestión de clases, asistencia y cronogramas del ministerio infantil.",
+  title: "JP KIDS",
+  description: "Plataforma segura para la gestión de clases, asistencia y cronogramas del ministerio de niños.",
 };
 
 export default function RootLayout({
