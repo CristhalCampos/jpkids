@@ -224,7 +224,7 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <UpcomingEventsSection upcomingNotices={upcomingNotices} />
-        <MonthlyBirthdaysSection monthlyBirthdays={monthlyBirthdays} />
+        <MonthlyBirthdaysSection {...({ monthlyBirthdays } as any)} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
