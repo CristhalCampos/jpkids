@@ -3,15 +3,42 @@ import { useState, useEffect } from 'react';
 import { Suspense } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { BookOpen, Sparkles, ArrowLeft, Loader2, Download, Bible } from 'lucide-react';
-import { pdf } from '@react-pdf/renderer'; // SENIOR: Importamos la función generadora
+import { BookOpen, Sparkles, ArrowLeft, Loader2, Download } from 'lucide-react';
+import { pdf } from '@react-pdf/renderer';
 import ClassPDF from '@/components/schedule/ClassPDF';
 
-// Versiones de la Biblia disponibles
+// SENIOR: IDs oficiales de YouVersion para traducciones en español
 const BIBLE_VERSIONS = [
-  { id: 'ntv', name: 'Nueva Traducción Viviente (NTV)', lang: 'es' },
-  { id: 'rvr1960', name: 'Reina-Valera 1960 (RVR1960)', lang: 'es' },
+  { id: '158', name: 'Nueva Versión Internacional (NVI)' },
+  { id: '149', name: 'Reina-Valera 1960 (RVR1960)' },
+  { id: '180', name: 'Nueva Traducción Viviente (NTV)' },
 ];
+
+// SENIOR: Mapeo de nombres de libros en español a IDs numéricos de YouVersion
+const YOUVERSION_BOOKS: { [key: string]: number } = {
+  'génesis': 1, 'genesis': 1, 'exodo': 2, 'éxodo': 2, 'levitico': 3, 'levítico': 3,
+  'numeros': 4, 'números': 4, 'deuteronomio': 5, 'josue': 6, 'josué': 6, 'jueces': 7,
+  'rut': 8, '1 samuel': 9, '2 samuel': 10, '1 reyes': 11, '2 reyes': 12,
+  '1 cronicas': 13, '1 crónicas': 13, '2 cronicas': 14, '2 crónicas': 14, 'esdras': 15,
+  'nehemias': 16, 'nehemías': 16, 'ester': 17, 'job': 18, 'salmos': 19, 'salmo': 19,
+  'proverbios': 20, 'eclesiastes': 21, 'eclesiastés': 21, 'cantares': 22, 'isaias': 23, 'isaías': 23,
+  'jeremias': 24, 'jeremías': 24, 'lamentaciones': 25, 'ezequiel': 26, 'daniel': 27,
+  'oseas': 28, 'joel': 29, 'amos': 30, 'amós': 30, 'abdias': 31, 'abdías': 31,
+  'jonas': 32, 'jonás': 32, 'miqueas': 33, 'nahum': 34, 'nahúm': 34, 'habacuc': 35,
+  'sofonias': 36, 'sofonías': 36, 'hageo': 37, 'zacarias': 38, 'zacarías': 38,
+  'malaquias': 39, 'malaquías': 39, 'mateo': 40, 'marcos': 41, 'lucas': 42,
+  'juan': 43, 'hechos': 44, 'romanos': 45, '1 corintios': 46, '2 corintios': 47,
+  'galatas': 48, 'gálatas': 48, 'efesios': 49, 'filipenses': 50, 'colosenses': 51,
+  '1 tesalonicenses': 52, '2 tesalonicenses': 53, '1 timoteo': 54, '2 timoteo': 55,
+  'tito': 56, 'filemon': 57, 'filemón': 57, 'hebreos': 58, 'santiago': 59,
+  '1 pedro': 60, '2 pedro': 61, '1 juan': 62, '2 juan': 63, '3 juan': 64,
+  'judas': 65, 'apocalipsis': 66
+};
+
+interface BibleVerseData {
+  text: string;
+  version: string;
+}
 
 function ScheduleDetailContent() {
   const params = useParams();
@@ -20,10 +47,10 @@ function ScheduleDetailContent() {
   const supabase = createClient();
 
   const [loading, setLoading] = useState(true);
-  const [dayData, setDayData] = useState(null);
-  const [groupNumber, setGroupNumber] = useState(null);
-  const [bibleVersion, setBibleVersion] = useState('ntv');
-  const [bibleVerseData, setBibleVerseData] = useState(null);
+  const [dayData, setDayData] = useState<any>(null);
+  const [groupNumber, setGroupNumber] = useState<number | null>(null);
+  const [bibleVersion, setBibleVersion] = useState('180'); // 180 = NTV por defecto
+  const [bibleVerseData, setBibleVerseData] = useState<BibleVerseData | null>(null);
   const [loadingVerse, setLoadingVerse] = useState(false);
   const [generatingPDF, setGeneratingPDF] = useState(false);
 
@@ -56,9 +83,12 @@ function ScheduleDetailContent() {
           }
         }
 
-        // Cargar versículo con la versión por defecto (NTV)
+        // Cargar versículo con la versión por defecto (NTV = 180)
         if (data.bible_verse) {
-          await fetchBibleVerse(data.bible_verse, 'ntv');
+          console.log('📖 Iniciando carga de versículo desde BD:', data.bible_verse);
+          await fetchBibleVerse(data.bible_verse, '180');
+        } else {
+          console.log('⚠️ No hay campo bible_verse en los datos de este día.');
         }
       } catch (err) {
         console.error("Error al obtener detalle del día:", err);
@@ -70,76 +100,110 @@ function ScheduleDetailContent() {
     fetchDayDetail();
   }, [id, supabase]);
 
-  // Función para parsear referencia bíblica (ej: "Juan 3:16" → {book: "juan", chapter: 3, verse: 16})
-  const parseBibleReference = (reference) => {
-    // Eliminar espacios extra y convertir a minúsculas
+  // SENIOR: Parsea la referencia y devuelve el ID numérico del libro para YouVersion
+  const parseBibleReference = (reference: string) => {
+    console.log('🔍 Parseando referencia:', reference);
     const cleanRef = reference.trim().toLowerCase();
     
-    // Patrón para detectar libro, capítulo y versículo
-    // Ejemplos: "Juan 3:16", "Juan 3:16-18", "Salmo 23:1"
+    // Patrón: "libro cap:vers" o "libro cap:vers-fin"
     const match = cleanRef.match(/^([a-záéíóúüñ\s]+?)\s+(\d+):(\d+)(?:-\d+)?$/);
     
     if (!match) {
-      // Si no hay versículo específico, intentar solo libro y capítulo
+      // Intentar solo libro y capítulo
       const matchChapter = cleanRef.match(/^([a-záéíóúüñ\s]+?)\s+(\d+)$/);
       if (matchChapter) {
-        return {
-          book: matchChapter[1].trim(),
-          chapter: parseInt(matchChapter[2]),
-          verse: 1 // Por defecto el primer versículo
-        };
+        const bookName = matchChapter[1].trim();
+        const bookId = YOUVERSION_BOOKS[bookName];
+        console.log('📖 Coincidencia solo capítulo:', bookName, '-> ID:', bookId);
+        return bookId ? { bookId, chapter: parseInt(matchChapter[2]), verse: 1 } : null;
       }
+      console.log('❌ No se pudo hacer match con la referencia:', cleanRef);
+      return null;
+    }
+
+    const bookName = match[1].trim();
+    const bookId = YOUVERSION_BOOKS[bookName];
+    console.log('📖 Libro encontrado:', bookName, '-> ID:', bookId);
+    
+    if (!bookId) {
+      console.error('⚠️ El libro NO está en el mapeo YOUVERSION_BOOKS:', bookName);
       return null;
     }
 
     return {
-      book: match[1].trim(),
+      bookId,
       chapter: parseInt(match[2]),
       verse: parseInt(match[3])
     };
   };
 
-  // Función para obtener versículo de la API
-  const fetchBibleVerse = async (reference, version) => {
+  // SENIOR: Consulta la API oficial de YouVersion con logs de depuración
+  const fetchBibleVerse = async (reference: string, versionId: string) => {
+    console.log('🚀 Iniciando fetchBibleVerse. Referencia:', reference, 'Versión ID:', versionId);
     setLoadingVerse(true);
     try {
       const parsed = parseBibleReference(reference);
       
       if (!parsed) {
-        setBibleVerseData({ text: reference, version });
+        console.error('❌ Error: parseBibleReference devolvió null para:', reference);
+        setBibleVerseData({ text: reference, version: "Referencia no reconocida" });
         setLoadingVerse(false);
         return;
       }
 
-      // Construir URL de la API
-      const url = `https://cdn.jsdelivr.net/gh/wldeh/bible-api/bibles/${version}/books/${parsed.book}/chapters/${parsed.chapter}/verses/${parsed.version}.json`;
+      const apiKey = process.env.NEXT_PUBLIC_YOUVERSION_API_KEY;
+      if (!apiKey) {
+        console.error('❌ FALTA LA VARIABLE DE ENTORNO: NEXT_PUBLIC_YOUVERSION_API_KEY');
+        setBibleVerseData({ text: reference, version: "Falta API Key" });
+        setLoadingVerse(false);
+        return;
+      }
+
+      // SENIOR: El dominio oficial es api.youversionapi.com
+      // Formato: /bibles/{bible_id}/passages/{book_id}.{chapter}.{verse}
+      const url = `https://api.youversion.com/v1/bibles/${versionId}/passages/${parsed.bookId}.${parsed.chapter}.${parsed.verse}`;
+      console.log('🌐 URL a consultar:', url);
       
-      const response = await fetch(url);
+      // SENIOR: La API Key va en los HEADERS, no en la URL
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Api-Key': apiKey,
+          'Accept': 'application/json'
+        }
+      });
+      
+      console.log('📡 Respuesta de la API - Status:', response.status, response.statusText);
       
       if (!response.ok) {
-        throw new Error('Versículo no encontrado en esta versión');
+        const errorText = await response.text();
+        console.error('❌ Error en la respuesta de la API:', errorText);
+        throw new Error(`Versículo no encontrado (Status: ${response.status})`);
       }
       
       const data = await response.json();
+      console.log('✅ Datos recibidos de la API:', data);
       
-      // La API devuelve diferentes estructuras según la versión
-      const verseText = data.verse || data.text || data.content || reference;
+      // YouVersion devuelve el texto en 'data.content' o dentro de 'data.verses'
+      const verseText = data.content || (data.verses && data.verses.length > 0 ? data.verses[0].content : reference);
+      const versionName = BIBLE_VERSIONS.find(v => v.id === versionId)?.name || versionId;
       
       setBibleVerseData({
         text: verseText,
-        version: version.toUpperCase()
+        version: versionName
       });
     } catch (error) {
-      console.error("Error cargando versículo:", error);
-      setBibleVerseData({ text: reference, version: version.toUpperCase() });
+      console.error("💥 Error cargando versículo de YouVersion:", error);
+      setBibleVerseData({ text: reference, version: "No disponible" });
     } finally {
       setLoadingVerse(false);
     }
   };
 
   // Cambiar versión de la Biblia
-  const handleVersionChange = (e) => {
+  const handleVersionChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newVersion = e.target.value;
+    console.log('🔄 Cambiando versión a:', newVersion);
     setBibleVersion(newVersion);
     if (dayData?.bible_verse) {
       fetchBibleVerse(dayData.bible_verse, newVersion);
@@ -152,22 +216,19 @@ function ScheduleDetailContent() {
     setGeneratingPDF(true);
     
     try {
-      // 1. Generamos el documento PDF en memoria
       const blob = await pdf(
         <ClassPDF
           dayData={dayData}
           groupNumber={groupNumber}
           verseText={bibleVerseData?.text || dayData.bible_verse}
-          version={bibleVersion}
+          version={bibleVerseData?.version || bibleVersion}
         />
       ).toBlob();
 
-      // 2. Creamos una URL temporal y forzamos la descarga
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       
-      // Nombre del archivo seguro (sin caracteres especiales)
       const safeTheme = (dayData.theme || 'Clase').toLowerCase().replace(/[^a-z0-9]/g, '-');
       link.download = `jp-kids-${safeTheme}.pdf`;
       
@@ -175,7 +236,6 @@ function ScheduleDetailContent() {
       link.click();
       document.body.removeChild(link);
       
-      // 3. Liberamos memoria
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error("Error generando PDF:", error);
@@ -244,7 +304,7 @@ function ScheduleDetailContent() {
 
       {/* Cabecera / Tema oficial */}
       <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xs space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center">
           <span className="text-xs font-extrabold uppercase tracking-wider bg-slate-100 text-slate-700 px-3 py-1 rounded-full">
             {dayData.day} {dayNum} de {monthName} {groupNumber ? `• Grupo ${groupNumber}` : ''}
           </span>
@@ -268,7 +328,7 @@ function ScheduleDetailContent() {
                 value={bibleVersion}
                 onChange={handleVersionChange}
                 disabled={loadingVerse}
-                className="text-xs font-semibold bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
+                className="text-xs font-semibold bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 cursor-pointer"
               >
                 {BIBLE_VERSIONS.map((v) => (
                   <option key={v.id} value={v.id}>
