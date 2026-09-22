@@ -20,13 +20,12 @@ interface GenericItem {
 
 interface GroupCardProps {
   title: string;
-  // Modo directo: items ya vienen listos
   items?: GenericItem[];
-  // Modo dinámico: buscar maestras por groupId
   groupId?: string;
   onClick?: () => void;
   isTeacherGroup?: boolean;
   isToday?: boolean;
+  classDate?: string; // <-- NUEVO: Para saber qué fecha evaluar históricamente
 }
 
 export default function GroupCard({
@@ -35,30 +34,47 @@ export default function GroupCard({
   groupId,
   onClick,
   isTeacherGroup = false,
-  isToday = false
+  isToday = false,
+  classDate
 }: GroupCardProps) {
   const supabase = createClient();
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Solo buscar si NO se pasaron items directamente y SÍ hay groupId
   useEffect(() => {
     if (items || !groupId) return;
 
     async function fetchTeachers() {
       setLoading(true);
       try {
-        const { data: groupTeachers } = await supabase
+        // Determinamos la fecha a evaluar (si no viene classDate, usamos el día de hoy en formato YYYY-MM-DD)
+        const targetDate = classDate || new Date().toISOString().split('T')[0];
+
+        // Consultamos la relación filtrando por el grupo
+        const { data: groupTeachers, error } = await supabase
           .from('group_teacher')
-          .select('teacher_id')
+          .select('teacher_id, valid_from, valid_to')
           .eq('group_id', groupId);
 
-        if (!groupTeachers) {
+        if (error || !groupTeachers) {
           setLoading(false);
           return;
         }
 
-        const teacherIds = groupTeachers.map(gt => gt.teacher_id);
+        // Filtramos en memoria (o con la lógica de rangos) para quedarnos solo con las maestras vigentes en esa fecha
+        const activeGroupTeachers = groupTeachers.filter(gt => {
+          const from = gt.valid_from;
+          const to = gt.valid_to ? gt.valid_to : '9999-12-31'; // Si valid_to es NULL, sigue vigente de forma indefinida
+          return targetDate >= from && targetDate <= to;
+        });
+
+        const teacherIds = activeGroupTeachers.map(gt => gt.teacher_id);
+
+        if (teacherIds.length === 0) {
+          setTeachers([]);
+          setLoading(false);
+          return;
+        }
 
         const { data: teachersData } = await supabase
           .from('teachers')
@@ -74,9 +90,8 @@ export default function GroupCard({
     }
 
     fetchTeachers();
-  }, [groupId, supabase, items]);
+  }, [groupId, supabase, items, classDate]);
 
-  // Determinar el estilo del borde según el estado
   const getBorderClasses = () => {
     if (isTeacherGroup) {
       return 'border-blue-400 ring-1 ring-blue-400/30 bg-blue-50/20 hover:border-blue-500';
@@ -87,7 +102,6 @@ export default function GroupCard({
     return 'border-slate-200 hover:border-purple-300';
   };
 
-  // Convertir teachers a formato GenericItem si estamos en modo dinámico
   const displayItems: GenericItem[] = items || teachers.map(t => ({
     name: `${t.first_name} ${t.last_name}`.trim(),
     image: t.avatar_url || undefined

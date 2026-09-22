@@ -12,10 +12,10 @@ interface ScheduleItem {
 
 interface ScheduleSectionProps {
   weeklySchedule?: ScheduleItem[];
-  teacherGroups?: number[];
+  teacherGroupsByDate?: Record<string, number[]>;
 }
 
-export default function ScheduleSection({ weeklySchedule = [], teacherGroups = [] }: ScheduleSectionProps) {
+export default function ScheduleSection({ weeklySchedule = [], teacherGroupsByDate = {} }: ScheduleSectionProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
@@ -99,7 +99,11 @@ export default function ScheduleSection({ weeklySchedule = [], teacherGroups = [
             const dayNumber = dateObj.getDate();
             const monthName = dateObj.toLocaleString('es', { month: 'short' }).toUpperCase();
             const isToday = item.date === todayStr;
-            const isTeacherGroupDay = item.group_id && teacherGroups.includes(Number(item.group_id));
+            
+            // Obtenemos los grupos activos de la maestra para ESTA fecha en específico
+            const activeGroupsForThisDate = teacherGroupsByDate[item.date] || [];
+            const isTeacherGroupDay = item.group_id && activeGroupsForThisDate.includes(Number(item.group_id));
+            
             const isHighlighted = isToday || Boolean(isTeacherGroupDay);
 
             return (

@@ -30,7 +30,8 @@ export default function SchedulePage() {
   const supabase = createClient();
   const [loading, setLoading] = useState(true);
   const [currentTrimester, setCurrentTrimester] = useState<any>(null);
-  const [teacherGroups, setTeacherGroups] = useState<number[]>([]);
+  const [teacherGroupKeys, setTeacherGroupKeys] = useState<{ [dateStr: string]: number[] }>({}); 
+  // Guardaremos un mapa de fecha -> [group_ids donde la maestra estaba activa ese día]
   const [groupsMap, setGroupsMap] = useState<{[key: string]: number}>({});
   const [currentMonthNum, setCurrentMonthNum] = useState<number>(0);
 
@@ -50,20 +51,7 @@ export default function SchedulePage() {
         });
         setGroupsMap(gMap);
 
-        // 2. Obtener grupos del profesor logueado
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const { data: groupTeacherData } = await supabase
-            .from('group_teacher')
-            .select('group_id')
-            .eq('teacher_id', user.id);
-
-          if (groupTeacherData && groupTeacherData.length > 0) {
-            setTeacherGroups(groupTeacherData.map(item => item.group_id));
-          }
-        }
-
-        // 3. Obtener trimestres con meses y días
+        // 2. Obtener trimestres con meses y días PRIMERO para saber qué fechas existen
         const { data: trimestersData } = await supabase
           .from('schedule_trimester')
           .select(`
@@ -96,6 +84,38 @@ export default function SchedulePage() {
           }
 
           setCurrentTrimester(matchedTrimester);
+
+          // 3. Obtener los grupos del profesor de forma histórica evaluando las fechas del trimestre cargado
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            // Consultamos todas las asignaciones de este profesor en la tabla con rangos
+            const { data: gtData } = await supabase
+              .from('group_teacher')
+              .select('group_id, valid_from, valid_to')
+              .eq('teacher_id', user.id);
+
+            // Mapearemos por cada fecha de clase del trimestre si el profe pertenecía al grupo ese día
+            const groupMapByDate: { [dateStr: string]: number[] } = {};
+
+            trimestersData.forEach(trim => {
+              (trim.schedule_month || []).forEach(m => {
+                (m.schedule_day || []).forEach(day => {
+                  const classDate = day.date; // formato 'YYYY-MM-DD'
+                  
+                  // Buscar si para esta fecha la maestra estaba activa en el grupo
+                  const activeGroupsForThisDay = (gtData || []).filter(gt => {
+                    const from = gt.valid_from;
+                    const to = gt.valid_to ? gt.valid_to : '9999-12-31'; // Si es null, sigue vigente indefinidamente
+                    return classDate >= from && classDate <= to;
+                  }).map(gt => Number(gt.group_id));
+
+                  groupMapByDate[classDate] = activeGroupsForThisDay;
+                });
+              });
+            });
+
+            setTeacherGroupKeys(groupMapByDate);
+          }
         }
       } catch (error) {
         console.error("Error al cargar el cronograma:", error);
@@ -121,14 +141,17 @@ export default function SchedulePage() {
   const getClassesByMonth = (monthItem: any) => {
     const allDays = monthItem.schedule_day || [];
     
-    // ORDENAR: Primero mis clases, luego hoy, luego cronológicamente
+    // ORDENAR: Primero mis clases (según la fecha de la clase), luego hoy, luego cronológicamente
     const sortedDays = [...allDays].sort((a, b) => {
-      const aIsTeacher = teacherGroups.includes(Number(a.group_id));
-      const bIsTeacher = teacherGroups.includes(Number(b.group_id));
+      const aTeacherGroups = teacherGroupKeys[a.date] || [];
+      const bTeacherGroups = teacherGroupKeys[b.date] || [];
+      
+      const aIsTeacher = aTeacherGroups.includes(Number(a.group_id));
+      const bIsTeacher = bTeacherGroups.includes(Number(b.group_id));
       const aIsToday = a.date === todayStr;
       const bIsToday = b.date === todayStr;
       
-      // Prioridad 1: Clases del profesor logueado
+      // Prioridad 1: Clases del profesor logueado en esa fecha específica
       if (aIsTeacher && !bIsTeacher) return -1;
       if (!aIsTeacher && bIsTeacher) return 1;
       
@@ -146,6 +169,8 @@ export default function SchedulePage() {
       const groupId = dayRecord.group_id;
       const groupNum = groupsMap[groupId] || groupId;
       
+      const dayTeacherGroups = teacherGroupKeys[dayRecord.date] || [];
+
       return {
         id: dayRecord.id,
         date: dayRecord.date,
@@ -156,7 +181,7 @@ export default function SchedulePage() {
         groupNumber: groupNum,
         onClick: () => router.push(`/schedule/${dayRecord.id}`),
         isToday: dayRecord.date === todayStr,
-        isTeacherGroup: teacherGroups.includes(Number(groupId))
+        isTeacherGroup: dayTeacherGroups.includes(Number(groupId))
       };
     });
   };
@@ -209,7 +234,7 @@ export default function SchedulePage() {
                       </div>
                       
                       {classDays.length > 0 ? (
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                           {classDays.map((classDay) => (
                             <div key={classDay.id} className="space-y-2">
                               {/* Fecha de la clase */}
@@ -231,6 +256,7 @@ export default function SchedulePage() {
                                 onClick={classDay.onClick}
                                 isTeacherGroup={classDay.isTeacherGroup}
                                 isToday={classDay.isToday}
+                                classDate={classDay.date}
                               />
                             </div>
                           ))}

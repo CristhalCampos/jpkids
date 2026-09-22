@@ -55,9 +55,10 @@ export default function DashboardPage() {
   const [classesTaughtCount, setClassesTaughtCount] = useState(0);
   const [topStars, setTopStars] = useState<StarItem[]>([]);
   const [savingsData, setSavingsData] = useState<SavingsData | null>(null);
-  const [teacherGroups, setTeacherGroups] = useState<number[]>([]);
+  
+  // Cambiamos a un mapa de fecha (YYYY-MM-DD) -> Arreglo de group_ids activos ese día para la maestra
+  const [teacherGroupsByDate, setTeacherGroupsByDate] = useState<Record<string, number[]>>({});
 
-  // Instanciamos el cliente de Supabase para componentes del lado cliente ('use client')
   const supabase = createClient();
 
   useEffect(() => {
@@ -69,19 +70,7 @@ export default function DashboardPage() {
         todayObj.setDate(todayObj.getDate() - 7);
         const pastDate = todayObj.toISOString().split('T')[0];
 
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const { data: groupTeacherData } = await supabase
-            .from('group_teacher')
-            .select('group_id')
-            .eq('teacher_id', user.id);
-
-          if (groupTeacherData && groupTeacherData.length > 0) {
-            const groupIds = groupTeacherData.map((item: any) => item.group_id);
-            setTeacherGroups(groupIds);
-          }
-        }
-
+        // 1. Obtener el cronograma primero para conocer las fechas que se mostrarán
         const { data: scheduleData } = await supabase
           .from('schedule_day')
           .select('id, date, day, group_id')
@@ -89,7 +78,35 @@ export default function DashboardPage() {
           .order('date', { ascending: true })
           .limit(30);
 
-        setWeeklySchedule(scheduleData || []);
+        const scheduleList = scheduleData || [];
+        setWeeklySchedule(scheduleList);
+
+        // 2. Obtener los rangos de grupos del profesor logueado
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: groupTeacherData } = await supabase
+            .from('group_teacher')
+            .select('group_id, valid_from, valid_to')
+            .eq('teacher_id', user.id);
+
+          if (groupTeacherData && groupTeacherData.length > 0) {
+            const groupMap: Record<string, number[]> = {};
+
+            // Evaluamos para cada día del cronograma si la maestra pertenecía al grupo en esa fecha
+            scheduleList.forEach((item) => {
+              const classDate = item.date;
+              const activeGroups = groupTeacherData.filter((gt: any) => {
+                const from = gt.valid_from;
+                const to = gt.valid_to ? gt.valid_to : '9999-12-31'; // Si es NULL, está vigente indefinidamente
+                return classDate >= from && classDate <= to;
+              }).map((gt: any) => Number(gt.group_id));
+
+              groupMap[classDate] = activeGroups;
+            });
+
+            setTeacherGroupsByDate(groupMap);
+          }
+        }
 
         const { data: eventData } = await supabase
           .from('event')
@@ -217,7 +234,7 @@ export default function DashboardPage() {
     <div className="space-y-6 w-full">
       <ScheduleSection
         weeklySchedule={weeklySchedule}
-        teacherGroups={teacherGroups}
+        teacherGroupsByDate={teacherGroupsByDate}
       />
 
       <SavingSection savingsData={savingsData} />
