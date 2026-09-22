@@ -398,6 +398,15 @@ export default function RedistributePage() {
               </div>
 
               <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Nro de teléfono</label>
+                <input
+                  type="tel"
+                  placeholder="Ej. +58912345678"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+
+              <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Fecha de cumpleaños</label>
                 <input
                   type="date"
